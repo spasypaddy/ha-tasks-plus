@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tasks Plus</string>
+    <string name="widget_name">Tasks</string>
+    <string name="widget_description">Your Tasks Plus list from Home Assistant, with priorities, due dates and subtasks.</string>
+</resources>

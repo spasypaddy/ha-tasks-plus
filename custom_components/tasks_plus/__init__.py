@@ -26,6 +26,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
+from .http_api import TaskItemView, TasksListView
 from .model import TaskError, TaskList
 
 PLATFORMS = [Platform.TODO]
@@ -82,6 +83,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if not hass.data.get(_WS_REGISTERED):
         for handler in (ws_subscribe, ws_add, ws_update, ws_delete, ws_import):
             websocket_api.async_register_command(hass, handler)
+        hass.http.register_view(TasksListView())
+        hass.http.register_view(TaskItemView())
         hass.data[_WS_REGISTERED] = True
     return True
 

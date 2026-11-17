@@ -116,3 +116,42 @@ async def test_panel_api_and_todo_entity(hass: HomeAssistant, hass_ws_client) ->
     await hass.async_block_till_done()
     texts = sorted(t["text"] for t in hass.data[DOMAIN].list.tasks)
     assert texts == ["Buy card", "Old task"]
+
+
+async def test_http_api_for_widget(hass: HomeAssistant, hass_client) -> None:
+    await _setup(hass)
+    client = await hass_client()  # authenticated like a long-lived token
+
+    resp = await client.get("/api/tasks_plus/tasks")
+    assert resp.status == 200
+    assert (await resp.json())["tasks"] == []
+
+    resp = await client.post("/api/tasks_plus/tasks",
+                             json={"text": "Buy permits", "priority": "high", "due": "2026-11-20"})
+    assert resp.status == 200
+    task = (await resp.json())["task"]
+    assert task["priority"] == "high"
+
+    resp = await client.post(f"/api/tasks_plus/tasks/{task['id']}",
+                             json={"changes": {"subtasks": [{"text": "Find form"}, {"text": "Pay"}]}})
+    assert resp.status == 200
+    subs = (await resp.json())["task"]["subtasks"]
+    assert [s["text"] for s in subs] == ["Find form", "Pay"]
+
+    resp = await client.post(f"/api/tasks_plus/tasks/{task['id']}", json={"changes": {"done": True}})
+    done = (await resp.json())["task"]
+    assert done["done"] and all(s["done"] for s in done["subtasks"])
+
+    resp = await client.post(f"/api/tasks_plus/tasks/{task['id']}", json={"changes": {"priority": "urgent"}})
+    assert resp.status == 400
+    resp = await client.post("/api/tasks_plus/tasks/nope", json={"changes": {"done": True}})
+    assert resp.status == 400
+    resp = await client.post("/api/tasks_plus/tasks", data="not json")
+    assert resp.status == 400
+
+
+async def test_http_api_needs_login(hass: HomeAssistant, hass_client_no_auth) -> None:
+    await _setup(hass)
+    client = await hass_client_no_auth()
+    resp = await client.get("/api/tasks_plus/tasks")
+    assert resp.status == 401
