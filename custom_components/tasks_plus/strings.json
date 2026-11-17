@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Tasks Plus",
+        "description": "Adds a to-do list with subtasks, notes, due dates and priorities to your sidebar.",
+        "data": {
+          "name": "Name in the sidebar"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Tasks Plus is already set up."
+    }
+  }
+}
