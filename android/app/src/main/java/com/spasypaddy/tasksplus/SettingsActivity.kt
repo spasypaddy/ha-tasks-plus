@@ -94,9 +94,10 @@ private fun SettingsScreen() {
                     busy = true
                     status = null
                     scope.launch {
-                        val u = url.trim()
                         val t = token.trim()
                         status = try {
+                            val u = Api.normalize(url)
+                            url = u
                             val body = withContext(Dispatchers.IO) { Api(u, t).list() }
                             Prefs.saveConnection(context, u, t)
                             Prefs.saveCache(context, body, synced = true)

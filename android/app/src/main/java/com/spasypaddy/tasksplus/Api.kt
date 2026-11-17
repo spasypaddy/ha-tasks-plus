@@ -15,9 +15,15 @@ class ApiException(val code: Int, message: String) : IOException(message)
 
 /** Talks to Tasks Plus on Home Assistant. Every call blocks: run it off the main thread. */
 class Api(baseUrl: String, private val token: String) {
-    private val base = baseUrl.trim().trimEnd('/')
+    private val base = normalize(baseUrl)
 
-    fun list(): String = call("/api/tasks_plus/tasks", "GET", null)
+    /** Fetches the list, and checks the answer really is the list. */
+    fun list(): String {
+        val text = call("/api/tasks_plus/tasks", "GET", null)
+        val ok = try { JSONObject(text).optJSONArray("tasks") != null } catch (e: Exception) { false }
+        if (!ok) throw ApiException(0, "That address answered, but not with your tasks. Use just the start of the address, like https://xxxx.ui.nabu.casa")
+        return text
+    }
 
     fun add(fields: JSONObject): String = call("/api/tasks_plus/tasks", "POST", fields)
 
@@ -55,11 +61,24 @@ class Api(baseUrl: String, private val token: String) {
     }
 
     companion object {
+        /**
+         * Keeps only the server part of an address, so a link copied from the
+         * browser (https://host/lovelace/0, https://host/tasks-plus) still works.
+         */
+        fun normalize(input: String): String {
+            var s = input.trim()
+            if (!s.contains("://")) s = "https://$s"
+            val u = URL(s)
+            if (u.host.isNullOrEmpty()) throw java.net.MalformedURLException("no host")
+            val port = if (u.port == -1) "" else ":${u.port}"
+            return "${u.protocol}://${u.host}$port"
+        }
+
         fun from(context: Context): Api? {
             val url = Prefs.url(context)
             val token = Prefs.token(context)
             if (url.isNullOrBlank() || token.isNullOrBlank()) return null
-            return Api(url, token)
+            return try { Api(url, token) } catch (e: Exception) { null }
         }
 
         fun friendly(e: Throwable): String = when (e) {
