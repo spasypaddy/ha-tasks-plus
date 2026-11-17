@@ -26,6 +26,17 @@ Everything is saved on your Home Assistant. Nothing is sent anywhere else.
 
 **Tasks** now appears in the sidebar.
 
+## Dashboard card
+
+The same list can go on any dashboard. Edit a dashboard, choose **Add card**, and search for **Tasks Plus**. Or add it in YAML:
+
+```yaml
+type: custom:tasks-plus-card
+title: Tasks   # optional; leave it out or set it to "" for no heading
+```
+
+The card loads automatically with the integration; there's no resource to add.
+
 ## On your phone and Mac
 
 - **Android:** open **Tasks** from the sidebar in the Home Assistant app. For the home screen, long-press an empty space, choose **Widgets**, find Home Assistant's **To-do** widget, and pick the **Tasks** list.

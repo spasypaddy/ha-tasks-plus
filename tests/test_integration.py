@@ -46,6 +46,8 @@ async def test_config_flow_single_instance(hass: HomeAssistant) -> None:
 async def test_panel_api_and_todo_entity(hass: HomeAssistant, hass_ws_client) -> None:
     entry = await _setup(hass)
     assert "tasks-plus" in hass.data["frontend_panels"]
+    from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL
+    assert any("tasks-plus-panel.js" in u for u in hass.data[DATA_EXTRA_MODULE_URL].urls), "card loads on dashboards"
 
     client = await hass_ws_client(hass)
     await client.send_json({"id": 1, "type": f"{DOMAIN}/subscribe"})
@@ -112,6 +114,7 @@ async def test_panel_api_and_todo_entity(hass: HomeAssistant, hass_ws_client) ->
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert "tasks-plus" not in hass.data["frontend_panels"]
+    assert not any("tasks-plus-panel.js" in u for u in hass.data[DATA_EXTRA_MODULE_URL].urls)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     texts = sorted(t["text"] for t in hass.data[DOMAIN].list.tasks)

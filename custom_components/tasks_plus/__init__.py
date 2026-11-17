@@ -98,13 +98,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     version = _frontend_version()
+    module_url = f"{STATIC_URL}/{FRONTEND_FILE}?v={version}"
+    # Load the file on every page too, so the dashboard card is available
+    frontend.add_extra_js_url(hass, module_url)
+    entry.async_on_unload(lambda: frontend.remove_extra_js_url(hass, module_url))
     await panel_custom.async_register_panel(
         hass,
         frontend_url_path=PANEL_URL_PATH,
         webcomponent_name=PANEL_ELEMENT,
         sidebar_title=entry.title,
         sidebar_icon=PANEL_ICON,
-        module_url=f"{STATIC_URL}/{FRONTEND_FILE}?v={version}",
+        module_url=module_url,
         require_admin=False,
         config={"title": entry.title},
     )

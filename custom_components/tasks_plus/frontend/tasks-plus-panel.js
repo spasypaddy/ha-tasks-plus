@@ -42,6 +42,7 @@ const STYLE = `
   .toolbar .title { font-size: 20px; font-weight: 400; margin-left: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .wrap {
+    container-type: inline-size;
     max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px;
     padding-block: 24px 64px;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
@@ -171,7 +172,7 @@ const STYLE = `
   .import { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
   .import p { margin: 0; font-size: 14px; color: var(--muted); }
 
-  @media (max-width: 480px) {
+  @container (max-width: 520px) {
     .addsub { width: 32px; padding: 0; justify-content: center; }
     .addsub .lbl { display: none; }
     .item { gap: 4px; padding-left: 12px; padding-right: 4px; }
@@ -185,11 +186,14 @@ const STYLE = `
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>`;
 
-const TEMPLATE = `
+const PANEL_HEAD = `
 <div class="toolbar">
   <ha-menu-button></ha-menu-button>
   <div class="title" id="title">Tasks</div>
 </div>
+`;
+
+const BODY = `
 <div class="wrap">
   <header>
     <div class="date" id="today"></div>
@@ -236,6 +240,16 @@ const TEMPLATE = `
     </div>
   </div>
 </div>`;
+
+const CARD_STYLE = `
+<style>
+  :host { min-height: 0; background: none; }
+  ha-card { overflow: hidden; }
+  .card-head { display: flex; align-items: baseline; gap: 8px; padding: 16px 16px 0; }
+  .card-head .title { font-size: var(--ha-card-header-font-size, 24px); font-weight: 400; color: var(--ha-card-header-color, var(--ink)); }
+  .wrap { max-width: none; padding: 8px 16px 16px; gap: 14px; }
+  .list { background: none; }
+</style>`;
 
 const ICONS = {
   tick: '<svg viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3L13 4.5" stroke="var(--on-accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -686,30 +700,21 @@ function createApp(root, api) {
   };
 }
 
-class TasksPlusPanel extends HTMLElement {
+/* Shared by the side panel and the dashboard card: keeps the list live. */
+class TasksPlusBase extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
-    if (this._menu) this._menu.hass = hass;
+    this._hassChanged(hass);
     this._maybeSubscribe();
   }
   get hass() { return this._hass; }
-
-  set narrow(narrow) {
-    this._narrow = narrow;
-    if (this._menu) this._menu.narrow = narrow;
-  }
-  get narrow() { return this._narrow; }
-
-  set panel(panel) {
-    this._panel = panel;
-    if (this._titleEl) this._titleEl.textContent = (panel && panel.config && panel.config.title) || "Tasks";
-  }
-  get panel() { return this._panel; }
+  _hassChanged() {}
 
   connectedCallback() {
     if (!this._app) this._init();
     this._maybeSubscribe();
-    // Keep "Due today"/"Overdue" right if the panel stays open past midnight
+    // Keep "Due today"/"Overdue" right if the page stays open past midnight
+    clearInterval(this._timer);
     this._timer = setInterval(() => this._app && this._app.refreshDates(), 15 * 60 * 1000);
   }
 
@@ -718,14 +723,13 @@ class TasksPlusPanel extends HTMLElement {
     this._unsubscribe();
   }
 
+  _html() { return STYLE + BODY; }
+  _afterInit() {}
+
   _init() {
     const root = this.attachShadow({ mode: "open" });
-    root.innerHTML = STYLE + TEMPLATE;
-    this._menu = root.querySelector("ha-menu-button");
-    this._titleEl = root.getElementById("title");
-    if (this._hass) this._menu.hass = this._hass;
-    this._menu.narrow = this._narrow;
-    this.panel = this._panel;
+    root.innerHTML = this._html();
+    this._afterInit(root);
     const call = (msg) => this._hass.callWS(msg);
     this._app = createApp(root, {
       lang: () => (this._hass && this._hass.locale && this._hass.locale.language) || undefined,
@@ -761,6 +765,70 @@ class TasksPlusPanel extends HTMLElement {
   }
 }
 
-if (!customElements.get("tasks-plus-panel")) {
-  customElements.define("tasks-plus-panel", TasksPlusPanel);
+/* The Tasks page in the sidebar. */
+class TasksPlusPanel extends TasksPlusBase {
+  _hassChanged(hass) { if (this._menu) this._menu.hass = hass; }
+
+  set narrow(narrow) {
+    this._narrow = narrow;
+    if (this._menu) this._menu.narrow = narrow;
+  }
+  get narrow() { return this._narrow; }
+
+  set panel(panel) {
+    this._panel = panel;
+    if (this._titleEl) this._titleEl.textContent = (panel && panel.config && panel.config.title) || "Tasks";
+  }
+  get panel() { return this._panel; }
+
+  _html() { return STYLE + PANEL_HEAD + BODY; }
+
+  _afterInit(root) {
+    this._menu = root.querySelector("ha-menu-button");
+    this._titleEl = root.getElementById("title");
+    if (this._hass) this._menu.hass = this._hass;
+    this._menu.narrow = this._narrow;
+    this.panel = this._panel;
+  }
+}
+
+/*
+ * Dashboard card:
+ *   type: custom:tasks-plus-card
+ *   title: Tasks        # optional; leave empty for no heading
+ */
+class TasksPlusCard extends TasksPlusBase {
+  static getStubConfig() { return { title: "Tasks" }; }
+
+  setConfig(config) {
+    this._config = config || {};
+    this._applyTitle();
+  }
+
+  getCardSize() { return 8; }
+  getGridOptions() { return { columns: 12, min_columns: 6 }; }
+
+  _html() {
+    return STYLE + CARD_STYLE + '<ha-card><div class="card-head" id="cardHead"><span class="title" id="cardTitle"></span></div>' + BODY + "</ha-card>";
+  }
+
+  _afterInit() { this._applyTitle(); }
+
+  _applyTitle() {
+    if (!this.shadowRoot) return;
+    const title = this._config && "title" in this._config ? this._config.title : "Tasks";
+    this.shadowRoot.getElementById("cardTitle").textContent = title || "";
+    this.shadowRoot.getElementById("cardHead").hidden = !title;
+  }
+}
+
+if (!customElements.get("tasks-plus-panel")) customElements.define("tasks-plus-panel", TasksPlusPanel);
+if (!customElements.get("tasks-plus-card")) {
+  customElements.define("tasks-plus-card", TasksPlusCard);
+  window.customCards = window.customCards || [];
+  window.customCards.push({
+    type: "tasks-plus-card",
+    name: "Tasks Plus",
+    description: "Your Tasks Plus list, with subtasks, notes, due dates and priorities.",
+  });
 }
