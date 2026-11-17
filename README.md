@@ -33,6 +33,16 @@ Everything is saved on your Home Assistant. Nothing is sent anywhere else.
 
 The widget is Home Assistant's own, so it shows task names and tick boxes. Subtasks, priorities and notes are on the **Tasks** page. Ticking a task in the widget keeps its priority, date and subtasks.
 
+## Android widget app
+
+Home Assistant's own to-do widget only shows names and tick boxes. The **Tasks Plus** Android app adds a widget that looks like the list itself: priority colours, due dates, step counts, and tick boxes for tasks and subtasks. Its **+** button adds a task.
+
+1. On your phone, download `tasks-plus.apk` from the [latest release](https://github.com/spasypaddy/ha-tasks-plus/releases/latest) and open it. Android will ask you to allow installs from your browser the first time.
+2. Open **Tasks Plus**. Enter your Home Assistant address (the same one the Home Assistant app uses) and a long-lived access token (in Home Assistant: your profile > **Security** > **Long-lived access tokens** > **Create token**). Tap **Save and connect**.
+3. Long-press your home screen, choose **Widgets**, and add **Tasks Plus**.
+
+The widget refreshes every 15 minutes, when you tap the refresh button, and straight after you tick something. Tapping a task opens the full **Tasks** page in the Home Assistant app. Needs Android 12 or later and Tasks Plus 1.1.0 or later.
+
 ## Moving tasks from another list
 
 On the **Tasks** page, choose **Import tasks** at the bottom and paste a JSON list of tasks. Each task can have `text`, `done`, `due` (`YYYY-MM-DD`), `priority` (`high`, `medium`, `low`), `notes` and `subtasks` (each with `text`, `done`, `priority`). Imported tasks are added; nothing is replaced.
